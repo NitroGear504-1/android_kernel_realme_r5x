@@ -831,7 +831,6 @@ config FORCE_ALLOC_FROM_DMA_ZONE
 	  If unsure, say "n".
 
 # multi-gen LRU {
->>>>>>> 589c55901323 (FROMLIST: mm: multi-gen LRU: minimal implementation)
 config LRU_GEN
 	bool "Multi-Gen LRU"
 	depends on MMU
