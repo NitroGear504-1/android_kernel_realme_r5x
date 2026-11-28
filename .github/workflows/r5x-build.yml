@@ -1,4 +1,4 @@
-name: Stormbreaker r5x Kernel Build
+name: Scythe Reborn Kernel Build
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches:
       - '16.0-mem-opt-m5'
       - '16.0-mem-opt-m6'
+      - '16.0-mem-opt-m7'
 
 permissions:
   contents: read
@@ -91,10 +92,10 @@ jobs:
       - name: Upload flashable kernel
         uses: actions/upload-artifact@v6
         with:
-          name: Stormbreaker-r5x-${{ github.sha }}
+          name: Scythe-Reborn-r5x-${{ github.sha }}
           path: |
-            out-ci/r5x-Stormbreaker-*.zip
-            out-ci/r5x-Stormbreaker-*.zip.sha256
+            out-ci/Scythe-Reborn-r5x-*.zip
+            out-ci/Scythe-Reborn-r5x-*.zip.sha256
             out-ci/r5x-build-commit.txt
             out-ci/r5x-build-checksum.txt
             out-ci/.config

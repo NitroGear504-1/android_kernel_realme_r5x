@@ -4,7 +4,7 @@
 ### AnyKernel setup
 # global properties
 properties() { '
-kernel.string="Stormbreaker r5x - Memory and System Optimization"
+kernel.string="Scythe Kernel: Reborn by NitroGear504"
 do.devicecheck=1
 do.modules=0
 do.systemless=1

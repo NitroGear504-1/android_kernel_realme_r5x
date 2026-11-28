@@ -30,7 +30,7 @@ test -s "$IMAGE"
     sha256sum -c r5x-build-checksum.txt
 )
 
-ZIP_NAME="r5x-Stormbreaker-${SHORT_COMMIT}-$(date -u +%Y%m%d-%H%M%S).zip"
+ZIP_NAME="Scythe-Reborn-r5x-${SHORT_COMMIT}-$(date -u +%Y%m%d-%H%M%S).zip"
 ZIP="$OUT/$ZIP_NAME"
 
 test ! -e "$ZIP"
@@ -51,6 +51,7 @@ cp "$IMAGE" "$STAGE/Image.gz-dtb"
 test -s "$STAGE/tools/magiskboot"
 test -s "$STAGE/tools/busybox"
 test -f "$STAGE/anykernel.sh"
+test -s "$STAGE/banner"
 
 echo "=== CREATING ZIP ==="
 
@@ -64,6 +65,10 @@ echo "=== CREATING ZIP ==="
 echo "=== VERIFYING ZIP ==="
 
 unzip -tq "$TEMP/$ZIP_NAME"
+
+cmp "$STAGE/banner" <(
+    unzip -p "$TEMP/$ZIP_NAME" banner
+)
 
 cmp "$IMAGE" <(
     unzip -p "$TEMP/$ZIP_NAME" Image.gz-dtb
