@@ -4,7 +4,7 @@
 ### AnyKernel setup
 # global properties
 properties() { '
-kernel.string="If young Metro dont trust you, Im gon shoot you"
+kernel.string="Stormbreaker r5x - Memory and System Optimization"
 do.devicecheck=0
 do.modules=0
 do.systemless=1
@@ -28,29 +28,54 @@ is_slot_device=0;
 ramdisk_compression=auto;
 patch_vbmeta_flag=auto;
 
-# import functions/variables and setup patching - see for reference (DO NOT REMOVE)
+# Import AnyKernel3 core once.
 . tools/ak3-core.sh;
 
-if mountpoint -q /data; then
-	ui_print " ";
-	ui_print "[+] Backing up boot & DTBO . . .";
+# Validate the payload and resolved boot partition.
+[ -s "$AKHOME/Image.gz-dtb" ] || abort "Missing kernel image.";
+[ -b "$BLOCK" ] || abort "Invalid boot block device.";
 
-	dd if=/dev/block/by-name/boot of=/sdcard/backup_boot.img;
-	dd if=/dev/block/by-name/dtbo of=/sdcard/backup_dtbo.img;
-	if [ $? != 0 ]; then
-		ui_print "[!] Backup failed; proceeding anyway . . .";
-	else
-		ui_print "[+] Done";
-	fi
-fi
-
-## AnyKernel methods (DO NOT CHANGE)
-# import patching functions/variables - see for reference
-. tools/ak3-core.sh;
-
-## AnyKernel install
+# Dump and validate the existing boot image.
 split_boot;
+[ -s "$BOOTIMG" ] || abort "Unable to read existing boot image.";
 
+# Optional recovery backup when internal storage is accessible.
+if mountpoint -q /data && [ -d /sdcard ] && [ -w /sdcard ]; then
+    BACKUP_DIR=$(mktemp -d /sdcard/r5x-kernel-backup-XXXXXX);
+
+    if [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
+        ui_print " " "[+] Backing up current boot image...";
+
+        if cp "$BOOTIMG" "$BACKUP_DIR/boot.img" &&
+           [ -s "$BACKUP_DIR/boot.img" ] &&
+           cmp -s "$BOOTIMG" "$BACKUP_DIR/boot.img"; then
+            ui_print "[+] Boot backup verified.";
+        else
+            rm -f "$BACKUP_DIR/boot.img";
+            ui_print "[!] Boot backup failed.";
+        fi;
+
+        DTBO_BLOCK=/dev/block/by-name/dtbo;
+
+        if [ -b "$DTBO_BLOCK" ]; then
+            if dd if="$DTBO_BLOCK" of="$BACKUP_DIR/dtbo.img" &&
+               [ -s "$BACKUP_DIR/dtbo.img" ]; then
+                ui_print "[+] DTBO backup created.";
+            else
+                rm -f "$BACKUP_DIR/dtbo.img";
+                ui_print "[!] DTBO backup failed.";
+            fi;
+        fi;
+
+        ui_print "[+] Backup directory: $BACKUP_DIR";
+    else
+        ui_print "[!] Unable to create backup directory.";
+    fi;
+else
+    ui_print "[!] Internal storage unavailable; skipping backup.";
+fi;
+
+# Install using the existing AnyKernel3 implementation.
 flash_boot;
 flash_dtbo;
 ## end install
