@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout kernel source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install build dependencies
         run: |
@@ -89,7 +89,7 @@ jobs:
           cat r5x-build-commit.txt
 
       - name: Upload flashable kernel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Stormbreaker-r5x-${{ github.sha }}
           path: |
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload diagnostic log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: failed-build-log
           path: out-ci/build.log
