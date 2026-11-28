@@ -5,17 +5,17 @@
 # global properties
 properties() { '
 kernel.string="Stormbreaker r5x - Memory and System Optimization"
-do.devicecheck=0
+do.devicecheck=1
 do.modules=0
 do.systemless=1
 do.cleanup=1
 do.cleanuponabort=0
 device.name1=RMX1911
-device.name2=RMX1925
-device.name3=RMX1927
-device.name4=RMX2030
-device.name5=RMX1919
-device.name6=r5x
+device.name2=
+device.name3=
+device.name4=
+device.name5=
+device.name6=
 device.name7=
 supported.versions=10-17
 supported.patchlevels=
