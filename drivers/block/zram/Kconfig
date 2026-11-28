@@ -15,6 +15,16 @@ config ZRAM
 
 	  See Documentation/blockdev/zram.txt for more information.
 
+config ZRAM_R5X_DEFAULT_SIZE_MB
+	int "r5x initial zram0 capacity (MiB)"
+	depends on ZRAM
+	range 0 4096
+	default 0
+	help
+	  Override the first successful initialization size of zram0.
+	  A value of zero preserves normal userspace configuration.
+	  Subsequent initialization after reset remains configurable.
+
 config ZRAM_DEDUP
 	bool "Deduplication support for ZRAM data"
 	depends on ZRAM

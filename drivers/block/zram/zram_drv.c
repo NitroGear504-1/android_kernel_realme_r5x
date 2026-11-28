@@ -1826,6 +1826,7 @@ static ssize_t disksize_store(struct device *dev,
 	struct zcomp *comp;
 	struct zram *zram = dev_to_zram(dev);
 	int err;
+	bool use_default_size;
 
 	disksize = memparse(buf, NULL);
 	if (!disksize)
@@ -1837,6 +1838,17 @@ static ssize_t disksize_store(struct device *dev,
 		err = -EBUSY;
 		goto out_unlock;
 	}
+
+	/*
+	 * Preserve Android's normal swap setup, but override
+	 * the initial zram0 capacity on r5x.
+	 */
+	use_default_size = CONFIG_ZRAM_R5X_DEFAULT_SIZE_MB &&
+			   zram->disk->first_minor == 0 &&
+			   !zram->initial_size_set;
+
+	if (use_default_size)
+		disksize = (u64)CONFIG_ZRAM_R5X_DEFAULT_SIZE_MB << 20;
 
 	disksize = PAGE_ALIGN(disksize);
 	if (!zram_meta_alloc(zram, disksize)) {
@@ -1854,6 +1866,11 @@ static ssize_t disksize_store(struct device *dev,
 
 	zram->comp = comp;
 	zram->disksize = disksize;
+	zram->initial_size_set = true;
+
+	if (use_default_size)
+		pr_info("r5x: initial zram0 capacity set to %llu bytes\n",
+			(unsigned long long)disksize);
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 
 	revalidate_disk(zram->disk);
