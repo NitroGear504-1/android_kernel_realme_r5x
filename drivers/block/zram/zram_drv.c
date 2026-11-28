@@ -1822,7 +1822,7 @@ static void zram_reset_device(struct zram *zram)
 static ssize_t disksize_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
-	u64 disksize;
+	u64 disksize, requested_size;
 	struct zcomp *comp;
 	struct zram *zram = dev_to_zram(dev);
 	int err;
@@ -1831,6 +1831,8 @@ static ssize_t disksize_store(struct device *dev,
 	disksize = memparse(buf, NULL);
 	if (!disksize)
 		return -EINVAL;
+
+	requested_size = PAGE_ALIGN(disksize);
 
 	down_write(&zram->init_lock);
 	if (init_done(zram)) {
@@ -1851,7 +1853,21 @@ static ssize_t disksize_store(struct device *dev,
 		disksize = (u64)CONFIG_ZRAM_R5X_DEFAULT_SIZE_MB << 20;
 
 	disksize = PAGE_ALIGN(disksize);
+retry_alloc:
 	if (!zram_meta_alloc(zram, disksize)) {
+		/*
+		 * The failed metadata allocation has been cleaned up.
+		 * Retry only when our override increased the capacity.
+		 */
+		if (use_default_size && requested_size &&
+		    requested_size < disksize) {
+			pr_warn("r5x: zram0 metadata allocation failed, retrying %llu bytes\n",
+				(unsigned long long)requested_size);
+			disksize = requested_size;
+			use_default_size = false;
+			goto retry_alloc;
+		}
+
 		err = -ENOMEM;
 		goto out_unlock;
 	}
