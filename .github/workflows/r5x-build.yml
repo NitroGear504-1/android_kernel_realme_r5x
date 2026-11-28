@@ -1,0 +1,114 @@
+name: Stormbreaker r5x Kernel Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '16.0-mem-opt-m5'
+      - '16.0-mem-opt-m6'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r5x-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build r5x with Android Clang 20
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex \
+            libssl-dev libelf-dev libncurses-dev \
+            libncurses5 libtinfo5 \
+            liblz4-tool lzop cpio \
+            device-tree-compiler \
+            git python3 rsync zip unzip zstd
+
+      - name: Install Android Clang 20
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TC="$RUNNER_TEMP/android-clang"
+
+          git init "$TC"
+
+          git -C "$TC" remote add origin \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86
+
+          git -C "$TC" sparse-checkout init --cone
+          git -C "$TC" sparse-checkout set clang-r547379
+
+          git -C "$TC" fetch \
+            --depth=1 \
+            --filter=blob:none \
+            origin 2d4dcbff7cb42f360f368bacf51cfe711fd1cb0f
+
+          git -C "$TC" checkout --detach FETCH_HEAD
+
+          CLANG_DIR="$TC/clang-r547379"
+
+          "$CLANG_DIR/bin/clang" --version
+          "$CLANG_DIR/bin/ld.lld" --version
+
+          "$CLANG_DIR/bin/clang" --version |
+            grep -F "based on r547379"
+
+          echo "CLANG_DIR=$CLANG_DIR" >> "$GITHUB_ENV"
+
+      - name: Validate build scripts
+        run: |
+          bash -n scripts/r5x-build.sh
+          bash -n scripts/r5x-package.sh
+          bash -n AnyKernel/anykernel.sh
+
+      - name: Compile kernel
+        run: |
+          ./scripts/r5x-build.sh "$PWD/out-ci"
+
+      - name: Package AnyKernel3
+        run: |
+          ./scripts/r5x-package.sh "$PWD/out-ci"
+
+      - name: Verify compiled image
+        run: |
+          cd out-ci
+          sha256sum -c r5x-build-checksum.txt
+          cat include/generated/utsrelease.h
+          cat r5x-build-commit.txt
+
+      - name: Upload flashable kernel
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stormbreaker-r5x-${{ github.sha }}
+          path: |
+            out-ci/r5x-Stormbreaker-*.zip
+            out-ci/r5x-Stormbreaker-*.zip.sha256
+            out-ci/r5x-build-commit.txt
+            out-ci/r5x-build-checksum.txt
+            out-ci/.config
+            out-ci/build.log
+            out-ci/include/generated/compile.h
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload diagnostic log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-build-log
+          path: out-ci/build.log
+          if-no-files-found: ignore
+          retention-days: 7
