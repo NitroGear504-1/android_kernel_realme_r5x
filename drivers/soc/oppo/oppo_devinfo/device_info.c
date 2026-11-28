@@ -17,6 +17,7 @@
 #include <soc/oppo/device_info.h>
 #include <soc/oppo/oppo_project.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/fs.h>
 #include <linux/of_gpio.h>
@@ -229,29 +230,73 @@ int register_tp_proc(char *name, char *version, char *manufacture ,char *fw_path
 
 
 /*maxinming_hq added for camera devinfo 20191212*/
+static DEFINE_MUTEX(camera_devinfo_lock);
+
+/* Preserve the first successfully registered camera for each role. */
+static const char * const camera_devinfo_names[] = {
+	"camera_main",
+	"camera_sub",
+	"camera_aux",
+};
+
+static bool camera_devinfo_registered[ARRAY_SIZE(camera_devinfo_names)];
+
 int register_device_proc_cam(char *name, char *version)
 {
 	struct manufacture_info *info;
+	int slot, ret;
+
+	if (!name)
+		return -EINVAL;
+
+	for (slot = 0; slot < ARRAY_SIZE(camera_devinfo_names); slot++) {
+		if (!strcmp(name, camera_devinfo_names[slot]))
+			break;
+	}
+
+	if (slot == ARRAY_SIZE(camera_devinfo_names))
+		return -EINVAL;
+
+	mutex_lock(&camera_devinfo_lock);
 
 	if (!g_parent) {
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_unlock;
 	}
-	info = (struct manufacture_info *)kzalloc(sizeof(*info), GFP_KERNEL);
+
+	if (camera_devinfo_registered[slot]) {
+		pr_debug("devinfo: keeping existing %s entry\n", name);
+		ret = 0;
+		goto out_unlock;
+	}
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_unlock;
 	}
 
 	if (version) {
-		info->version = (char *)kzalloc(32, GFP_KERNEL);
+		info->version = kstrndup(version, 31, GFP_KERNEL);
 		if (!info->version) {
 			kfree(info);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out_unlock;
 		}
-		memcpy(info->version, version, strlen(version)>31?31:strlen(version));
-
 	}
 
-	return register_devinfo(name, info);
+	ret = register_devinfo(name, info);
+	if (ret) {
+		kfree(info->version);
+		kfree(info);
+		goto out_unlock;
+	}
+
+	camera_devinfo_registered[slot] = true;
+
+out_unlock:
+	mutex_unlock(&camera_devinfo_lock);
+	return ret;
 }
 
 #define BOARD_GPIO_SUPPORT 4
